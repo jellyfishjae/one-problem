@@ -21,7 +21,7 @@ To package the local Chapter Zero collection, run:
 npm run export:chapter-zero
 ```
 
-This writes `books/exports/chapter-zero-import.json`. The script embeds each diagram as a PNG, JPEG, or WebP data URL, so the JSON is self-contained. Keep this file private. Imported collections use `format: "one-problem-collection"`, `version: 1`, and an ordered `problems` array. Each problem has a stable `id`, `chapter`, `number`, and `statement`; `hints` and `solution` are reserved for future use. Inline LaTeX goes between `$` delimiters. A diagram uses `figure.src` (an embedded image data URL), `figure.alt`, and `figure.caption`.
+This writes `books/exports/chapter-zero-import.json` with all 25 Chapter Zero problems. The script embeds each diagram as a PNG, JPEG, or WebP data URL, rasterizing the private SVG sources as needed, so the JSON is self-contained. Keep this file private. Imported collections use `format: "one-problem-collection"`, `version: 1`, and an ordered `problems` array. Each problem has a stable `id`, `chapter`, `number`, and `statement`; `hints` and `solution` are reserved for future use. Inline LaTeX goes between `$` delimiters. A diagram uses `figure.src` (an embedded image data URL), `figure.alt`, and `figure.caption`.
 
 Use **Import JSON** in the app to choose the file. The collection is stored in IndexedDB on that device and remains available offline. The selected problem and notes stay in localStorage, keyed by problem ID. Re-importing with the same IDs preserves those notes and the selected problem.
 
