@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="One Problem">
+  <rect width="512" height="512" fill="#f8f6f0" />
+  <path d="M194 190 258 149v214M184 363h153" fill="none" stroke="#333c33" stroke-linecap="square" stroke-linejoin="miter" stroke-width="31" />
+  <circle cx="375" cy="363" r="19" fill="#ad744f" />
+</svg>

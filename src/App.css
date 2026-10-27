@@ -10,7 +10,8 @@
   min-height: 100vh;
   min-height: 100dvh;
   margin: 0 auto;
-  padding: max(32px, env(safe-area-inset-top)) 28px max(28px, env(safe-area-inset-bottom));
+  padding: calc(32px + env(safe-area-inset-top)) calc(28px + env(safe-area-inset-right))
+    calc(28px + env(safe-area-inset-bottom)) calc(28px + env(safe-area-inset-left));
 }
 
 .site-header,
@@ -238,8 +239,8 @@
   }
 
   .app-shell {
-    padding-right: 24px;
-    padding-left: 24px;
+    padding-right: calc(24px + env(safe-area-inset-right));
+    padding-left: calc(24px + env(safe-area-inset-left));
   }
 
   .nav-button {
