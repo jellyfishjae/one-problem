@@ -23,6 +23,7 @@ export default defineConfig({
         ],
       },
       workbox: {
+        cleanupOutdatedCaches: true,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff,woff2,ttf}'],
         navigateFallback: 'index.html',
       },

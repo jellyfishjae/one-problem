@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "pwa:icons": "pwa-assets-generator"
+    "pwa:icons": "pwa-assets-generator",
+    "export:chapter-zero": "node scripts/export-chapter-zero.mjs"
   },
   "dependencies": {
     "katex": "^0.19.1",
