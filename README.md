@@ -11,4 +11,4 @@ npm run dev
 
 Use `npm run build` to create a production build and `npm run lint` to check the code.
 
-Problems live in `src/problems.json` in reading order. The app remembers the selected problem by its `id` in browser local storage.
+Problems live in `src/problems.json` in reading order. The app remembers the selected problem and saves notes for each problem by its `id` in browser local storage.

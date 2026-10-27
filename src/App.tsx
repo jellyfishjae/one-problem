@@ -3,6 +3,7 @@ import problems from './problems.json'
 import './App.css'
 
 const STORAGE_KEY = 'one-problem:current-problem'
+const NOTES_KEY_PREFIX = 'one-problem:notes:'
 
 function getInitialProblemIndex() {
   try {
@@ -14,8 +15,24 @@ function getInitialProblemIndex() {
   }
 }
 
+function getInitialNotes(): Record<string, string> {
+  const savedNotes: Record<string, string> = {}
+
+  try {
+    for (const problem of problems) {
+      const note = window.localStorage.getItem(`${NOTES_KEY_PREFIX}${problem.id}`)
+      if (note !== null) savedNotes[problem.id] = note
+    }
+  } catch {
+    // Notes remain usable for this session when browser storage is unavailable.
+  }
+
+  return savedNotes
+}
+
 function App() {
   const [currentIndex, setCurrentIndex] = useState(getInitialProblemIndex)
+  const [notes, setNotes] = useState(getInitialNotes)
   const problem = problems[currentIndex]
 
   useEffect(() => {
@@ -26,6 +43,16 @@ function App() {
     }
   }, [problem.id])
 
+  function updateNote(value: string) {
+    setNotes((currentNotes) => ({ ...currentNotes, [problem.id]: value }))
+
+    try {
+      window.localStorage.setItem(`${NOTES_KEY_PREFIX}${problem.id}`, value)
+    } catch {
+      // Keep the note in React state if browser storage is unavailable.
+    }
+  }
+
   return (
     <div className="app-shell">
       <header className="site-header">
@@ -33,7 +60,7 @@ function App() {
         <span className="header-note">A quiet place to think</span>
       </header>
 
-      <main className="problem-view" aria-live="polite">
+      <main className="problem-view">
         <div className="chapter-line">
           <span className="chapter-name">{problem.chapter}</span>
           <span className="problem-count">
@@ -41,10 +68,21 @@ function App() {
           </span>
         </div>
 
-        <article className="problem-content">
+        <article className="problem-content" aria-live="polite">
           <p className="problem-label">Problem {String(problem.number).padStart(2, '0')}</p>
           <h1>{problem.prompt}</h1>
         </article>
+
+        <details className="notes-section">
+          <summary>My Thoughts</summary>
+          <textarea
+            aria-label={`Notes for problem ${problem.number}`}
+            value={notes[problem.id] ?? ''}
+            onChange={(event) => updateNote(event.target.value)}
+            placeholder="Write down what you notice..."
+            rows={6}
+          />
+        </details>
       </main>
 
       <nav className="problem-navigation" aria-label="Problem navigation">
