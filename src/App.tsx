@@ -1,121 +1,71 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
+import { useEffect, useState } from 'react'
+import problems from './problems.json'
 import './App.css'
 
+const STORAGE_KEY = 'one-problem:current-problem'
+
+function getInitialProblemIndex() {
+  try {
+    const savedId = window.localStorage.getItem(STORAGE_KEY)
+    const savedIndex = problems.findIndex((problem) => problem.id === savedId)
+    return savedIndex >= 0 ? savedIndex : 0
+  } catch {
+    return 0
+  }
+}
+
 function App() {
-  const [count, setCount] = useState(0)
+  const [currentIndex, setCurrentIndex] = useState(getInitialProblemIndex)
+  const problem = problems[currentIndex]
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, problem.id)
+    } catch {
+      // The app still works when browser storage is unavailable.
+    }
+  }, [problem.id])
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+    <div className="app-shell">
+      <header className="site-header">
+        <span className="wordmark">One Problem<span className="wordmark-dot">.</span></span>
+        <span className="header-note">A quiet place to think</span>
+      </header>
+
+      <main className="problem-view" aria-live="polite">
+        <div className="chapter-line">
+          <span className="chapter-name">{problem.chapter}</span>
+          <span className="problem-count">
+            {String(currentIndex + 1).padStart(2, '0')} / {String(problems.length).padStart(2, '0')}
+          </span>
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
+
+        <article className="problem-content">
+          <p className="problem-label">Problem {String(problem.number).padStart(2, '0')}</p>
+          <h1>{problem.prompt}</h1>
+        </article>
+      </main>
+
+      <nav className="problem-navigation" aria-label="Problem navigation">
         <button
           type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
+          className="nav-button previous-button"
+          onClick={() => setCurrentIndex((index) => index - 1)}
+          disabled={currentIndex === 0}
         >
-          Count is {count}
+          <span aria-hidden="true">←</span> Previous
         </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+        <button
+          type="button"
+          className="nav-button next-button"
+          onClick={() => setCurrentIndex((index) => index + 1)}
+          disabled={currentIndex === problems.length - 1}
+        >
+          Next <span aria-hidden="true">→</span>
+        </button>
+      </nav>
+    </div>
   )
 }
 

@@ -1,0 +1,32 @@
+[
+  {
+    "id": "numbers-1",
+    "chapter": "Numbers & Patterns",
+    "number": 1,
+    "prompt": "A row of five consecutive whole numbers adds up to 85. What are the five numbers?"
+  },
+  {
+    "id": "numbers-2",
+    "chapter": "Numbers & Patterns",
+    "number": 2,
+    "prompt": "I choose a two-digit number. Reversing its digits makes a number 27 greater. What could my original number be?"
+  },
+  {
+    "id": "numbers-3",
+    "chapter": "Numbers & Patterns",
+    "number": 3,
+    "prompt": "How many different ways can you make 12 using only 2s and 3s, if the order of the numbers does not matter?"
+  },
+  {
+    "id": "shapes-1",
+    "chapter": "Shapes & Reasoning",
+    "number": 1,
+    "prompt": "A rectangle has a perimeter of 30 cm. Its length is 3 cm more than its width. What is its area?"
+  },
+  {
+    "id": "shapes-2",
+    "chapter": "Shapes & Reasoning",
+    "number": 2,
+    "prompt": "A square is cut along one diagonal. What is the perimeter of each triangle if the square's side is 6 cm?"
+  }
+]
