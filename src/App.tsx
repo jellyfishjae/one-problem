@@ -1,9 +1,50 @@
 import { useEffect, useState } from 'react'
-import problems from './problems.json'
+import katex from 'katex'
+import fallbackProblems from './problems.json'
+import 'katex/dist/katex.min.css'
 import './App.css'
+
+type Problem = {
+  id: string
+  chapter: string
+  chapterNumber?: number
+  number: number
+  sourcePage?: number
+  statement: string
+  figure?: {
+    src: string
+    alt: string
+    caption: string
+  }
+  hints: string[]
+  solution: string | null
+}
+
+const bookProblemFiles = import.meta.glob<Problem[]>('./book-problems.json', {
+  eager: true,
+  import: 'default',
+})
+const problems: Problem[] = bookProblemFiles['./book-problems.json'] ?? fallbackProblems
 
 const STORAGE_KEY = 'one-problem:current-problem'
 const NOTES_KEY_PREFIX = 'one-problem:notes:'
+
+function renderStatement(statement: string) {
+  return statement.split(/(\$[^$]+\$)/g).map((part, index) => {
+    if (part.startsWith('$') && part.endsWith('$')) {
+      return (
+        <span
+          key={index}
+          dangerouslySetInnerHTML={{
+            __html: katex.renderToString(part.slice(1, -1), { throwOnError: false }),
+          }}
+        />
+      )
+    }
+
+    return part
+  })
+}
 
 function getInitialProblemIndex() {
   try {
@@ -69,8 +110,14 @@ function App() {
         </div>
 
         <article className="problem-content" aria-live="polite">
-          <p className="problem-label">Problem {String(problem.number).padStart(2, '0')}</p>
-          <h1>{problem.prompt}</h1>
+          <p className="problem-label">Problem {problem.number}</p>
+          <h1>{renderStatement(problem.statement)}</h1>
+          {problem.figure && (
+            <figure className="problem-figure">
+              <img src={`${import.meta.env.BASE_URL}${problem.figure.src}`} alt={problem.figure.alt} />
+              <figcaption>{problem.figure.caption}</figcaption>
+            </figure>
+          )}
         </article>
 
         <details className="notes-section">

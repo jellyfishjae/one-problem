@@ -94,6 +94,30 @@
   text-wrap: pretty;
 }
 
+.problem-content h1 .katex {
+  font-size: 1em;
+}
+
+.problem-figure {
+  margin: 44px 0 0;
+}
+
+.problem-figure img {
+  display: block;
+  width: min(100%, 360px);
+  height: auto;
+  mix-blend-mode: multiply;
+}
+
+.problem-figure figcaption {
+  margin-top: 12px;
+  color: #797a6e;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
 .notes-section {
   margin-bottom: 48px;
   border-top: 1px solid #dddcd2;

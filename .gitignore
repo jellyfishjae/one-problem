@@ -25,3 +25,7 @@ dist-ssr
 
 # textbooks
 books/
+
+# Locally extracted textbook content
+src/book-problems.json
+public/book-assets/
