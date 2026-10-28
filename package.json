@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "test": "node --test tests/library.test.mjs",
     "preview": "vite preview",
     "pwa:icons": "pwa-assets-generator",
     "export:chapter-zero": "node scripts/export-chapter-zero.mjs"
@@ -22,6 +23,7 @@
     "@types/react-dom": "^19.3.0",
     "@vite-pwa/assets-generator": "^2.0.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "fake-indexeddb": "^6.2.6",
     "oxlint": "^1.88.0",
     "sharp": "^0.35.5",
     "typescript": "~6.0.3",

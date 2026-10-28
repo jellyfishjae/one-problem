@@ -1,20 +1,27 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import katex from 'katex'
 import sampleProblems from './problems.json'
-import { loadCollection, saveCollection, validateCollection, type Problem } from './collection'
+import { importCollection, loadLibrary, type Problem } from './collection'
+import {
+  groupChapters,
+  navigateSelection,
+  NOTES_KEY_PREFIX,
+  restoreSelection,
+  saveSelection,
+  selectProgressChapter,
+  type Chapter,
+} from './progress'
 import 'katex/dist/katex.min.css'
 import './App.css'
 
 type ActiveProblems = {
   kind: 'sample' | 'imported'
-  problems: Problem[]
+  chapters: Chapter[]
+  chapterKey: string
   currentIndex: number
+  lastByChapter: Record<string, string>
   notes: Record<string, string>
 }
-
-const STORAGE_KEY = 'one-problem:current-problem'
-const SAMPLE_STORAGE_KEY = 'one-problem:sample-current-problem'
-const NOTES_KEY_PREFIX = 'one-problem:notes:'
 
 function renderStatement(statement: string) {
   return statement.split(/(\$[^$]+\$)/g).map((part, index) => {
@@ -38,17 +45,16 @@ function createActiveProblems(
   kind: ActiveProblems['kind'],
   preferredId?: string,
 ): ActiveProblems {
-  let savedId: string | null = null
+  const chapters = kind === 'imported'
+    ? groupChapters(problems)
+    : [{ key: 'sample', name: '', problems }]
+  let storage: Storage | null = null
   try {
-    savedId = kind === 'sample'
-      ? window.localStorage.getItem(SAMPLE_STORAGE_KEY) ?? window.localStorage.getItem(STORAGE_KEY)
-      : window.localStorage.getItem(STORAGE_KEY)
+    storage = window.localStorage
   } catch {
-    // Problems remain available when browser storage is unavailable.
+    // Problems remain usable when browser storage is unavailable.
   }
-
-  const preferredIndex = problems.findIndex((problem) => problem.id === preferredId)
-  const savedIndex = problems.findIndex((problem) => problem.id === savedId)
+  const selection = restoreSelection(chapters, kind, storage, preferredId)
   const notes: Record<string, string> = {}
   try {
     for (const problem of problems) {
@@ -61,8 +67,8 @@ function createActiveProblems(
 
   return {
     kind,
-    problems,
-    currentIndex: preferredIndex >= 0 ? preferredIndex : savedIndex >= 0 ? savedIndex : 0,
+    chapters,
+    ...selection,
     notes,
   }
 }
@@ -71,13 +77,12 @@ function App() {
   const [active, setActive] = useState<ActiveProblems | null>(null)
   const [importMessage, setImportMessage] = useState('')
   const fileInput = useRef<HTMLInputElement>(null)
-  const problem = active?.problems[active.currentIndex]
-  const currentProblemId = problem?.id
-  const activeKind = active?.kind
+  const chapter = active?.chapters.find((item) => item.key === active.chapterKey)
+  const problem = chapter?.problems[active?.currentIndex ?? 0]
 
   useEffect(() => {
     let cancelled = false
-    loadCollection()
+    loadLibrary()
       .then((collection) => {
         if (!cancelled) {
           setActive(collection
@@ -95,13 +100,13 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (!currentProblemId || !activeKind) return
+    if (!active || !problem) return
     try {
-      window.localStorage.setItem(activeKind === 'sample' ? SAMPLE_STORAGE_KEY : STORAGE_KEY, currentProblemId)
+      saveSelection(active, active.chapters, active.kind, window.localStorage)
     } catch {
       // Navigation still works when browser storage is unavailable.
     }
-  }, [currentProblemId, activeKind])
+  }, [active, problem])
 
   function updateNote(value: string) {
     if (!problem) return
@@ -119,7 +124,15 @@ function App() {
   }
 
   function navigate(offset: number) {
-    setActive((current) => current && { ...current, currentIndex: current.currentIndex + offset })
+    setActive((current) => current && { ...current, ...navigateSelection(current, current.chapters, offset) })
+    setImportMessage('')
+  }
+
+  function selectChapter(key: string) {
+    setActive((current) => {
+      if (!current || current.kind !== 'imported') return current
+      return { ...current, ...selectProgressChapter(current, current.chapters, key) }
+    })
     setImportMessage('')
   }
 
@@ -135,14 +148,13 @@ function App() {
       } catch {
         throw new Error('Choose a valid JSON file.')
       }
-      const collection = validateCollection(parsed)
-      await saveCollection(collection)
-      setActive(createActiveProblems(
-        collection.problems,
-        'imported',
-        active?.kind === 'imported' ? problem?.id : undefined,
-      ))
-      setImportMessage(`Imported ${collection.problems.length} problems for offline use.`)
+      const collection = await importCollection(parsed)
+      setActive((current) => {
+        const selected = current?.chapters.find((item) => item.key === current.chapterKey)
+        const preferredId = current?.kind === 'imported' ? selected?.problems[current.currentIndex]?.id : undefined
+        return createActiveProblems(collection.problems, 'imported', preferredId)
+      })
+      setImportMessage(`Imported problems. ${collection.problems.length} are available offline across ${groupChapters(collection.problems).length} chapters.`)
     } catch (error) {
       setImportMessage(error instanceof Error ? error.message : 'Could not import this collection.')
     }
@@ -158,6 +170,7 @@ function App() {
             type="button"
             className="import-button"
             onClick={() => fileInput.current?.click()}
+            disabled={!active}
           >
             Import JSON
           </button>
@@ -179,9 +192,25 @@ function App() {
         <>
           <main className="problem-view">
             <div className="chapter-line">
-              <span className="chapter-name">{problem.chapter}</span>
+              {active.kind === 'imported' ? (
+                <div className="chapter-selector">
+                  <select
+                    aria-label="Choose chapter"
+                    value={active.chapterKey}
+                    onChange={(event) => selectChapter(event.target.value)}
+                  >
+                    {active.chapters.map((item) => (
+                      <option key={item.key} value={item.key}>
+                        {item.name} · {item.problems.length} {item.problems.length === 1 ? 'problem' : 'problems'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <span className="chapter-name">{problem.chapter}</span>
+              )}
               <span className="problem-count">
-                {String(active.currentIndex + 1).padStart(2, '0')} / {String(active.problems.length).padStart(2, '0')}
+                {String(active.currentIndex + 1).padStart(2, '0')} / {String(chapter?.problems.length ?? 0).padStart(2, '0')}
               </span>
             </div>
 
@@ -221,7 +250,7 @@ function App() {
               type="button"
               className="nav-button next-button"
               onClick={() => navigate(1)}
-              disabled={active.currentIndex === active.problems.length - 1}
+              disabled={active.currentIndex === (chapter?.problems.length ?? 0) - 1}
             >
               Next <span aria-hidden="true">→</span>
             </button>

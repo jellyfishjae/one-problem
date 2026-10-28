@@ -21,8 +21,11 @@ export type Collection = {
 }
 
 const DB_NAME = 'one-problem'
-const STORE_NAME = 'collections'
-const ACTIVE_KEY = 'active'
+const DB_VERSION = 2
+const LEGACY_STORE = 'collections'
+const LEGACY_KEY = 'active'
+const LIBRARY_STORE = 'library'
+const LIBRARY_KEY = 'problems'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -97,40 +100,98 @@ export function validateCollection(value: unknown): Collection {
   return { format: 'one-problem-collection', version: 1, problems }
 }
 
+export function chapterKey(problem: Problem): string {
+  return JSON.stringify([problem.chapterNumber ?? null, problem.chapter])
+}
+
+export function mergeCollections(current: Collection | null, incoming: Collection): Collection {
+  const validated = validateCollection(incoming)
+  const problems = new Map<string, Problem>()
+  for (const problem of current?.problems ?? []) problems.set(problem.id, problem)
+
+  for (const problem of validated.problems) {
+    const existing = problems.get(problem.id)
+    if (existing && chapterKey(existing) !== chapterKey(problem)) {
+      throw new Error(`Problem ${problem.id} already belongs to another chapter.`)
+    }
+    problems.set(problem.id, problem)
+  }
+
+  return validateCollection({ format: 'one-problem-collection', version: 1, problems: [...problems.values()] })
+}
+
 function openDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1)
-    request.onupgradeneeded = () => request.result.createObjectStore(STORE_NAME)
-    request.onsuccess = () => resolve(request.result)
+    const request = indexedDB.open(DB_NAME, DB_VERSION)
+    let blocked = false
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains(LEGACY_STORE)) request.result.createObjectStore(LEGACY_STORE)
+      if (!request.result.objectStoreNames.contains(LIBRARY_STORE)) request.result.createObjectStore(LIBRARY_STORE)
+    }
+    request.onblocked = () => {
+      blocked = true
+      reject(new Error('Close other One Problem tabs, then try again.'))
+    }
+    request.onsuccess = () => {
+      if (blocked) {
+        request.result.close()
+      } else {
+        request.result.onversionchange = () => request.result.close()
+        resolve(request.result)
+      }
+    }
     request.onerror = () => reject(request.error)
   })
 }
 
-export async function loadCollection(): Promise<Collection | null> {
+async function readOrMergeLibrary(incoming?: Collection): Promise<Collection | null> {
   const database = await openDatabase()
   try {
-    const value = await new Promise<unknown>((resolve, reject) => {
-      const request = database.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(ACTIVE_KEY)
-      request.onsuccess = () => resolve(request.result)
-      request.onerror = () => reject(request.error)
+    return await new Promise<Collection | null>((resolve, reject) => {
+      const transaction = database.transaction([LEGACY_STORE, LIBRARY_STORE], 'readwrite')
+      const library = transaction.objectStore(LIBRARY_STORE)
+      let result: Collection | null = null
+      let failure: unknown
+
+      function abort(error: unknown) {
+        failure = error
+        transaction.abort()
+      }
+
+      function finish(value: unknown, fromLegacy: boolean) {
+        try {
+          const current = value === undefined ? null : validateCollection(value)
+          result = incoming ? mergeCollections(current, incoming) : current
+          if (result && (incoming || fromLegacy)) library.put(result, LIBRARY_KEY)
+        } catch (error) {
+          abort(error)
+        }
+      }
+
+      const request = library.get(LIBRARY_KEY)
+      request.onsuccess = () => {
+        if (request.result !== undefined) {
+          finish(request.result, false)
+          return
+        }
+        const legacy = transaction.objectStore(LEGACY_STORE).get(LEGACY_KEY)
+        legacy.onsuccess = () => finish(legacy.result, true)
+      }
+      transaction.oncomplete = () => resolve(result)
+      transaction.onabort = () => reject(failure ?? transaction.error ?? new Error('Could not save the problem library.'))
     })
-    return value === undefined ? null : validateCollection(value)
   } finally {
     database.close()
   }
 }
 
-export async function saveCollection(collection: Collection): Promise<void> {
-  const database = await openDatabase()
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const transaction = database.transaction(STORE_NAME, 'readwrite')
-      transaction.objectStore(STORE_NAME).put(collection, ACTIVE_KEY)
-      transaction.oncomplete = () => resolve()
-      transaction.onerror = () => reject(transaction.error)
-      transaction.onabort = () => reject(transaction.error)
-    })
-  } finally {
-    database.close()
-  }
+export function loadLibrary(): Promise<Collection | null> {
+  return readOrMergeLibrary()
+}
+
+export async function importCollection(value: unknown): Promise<Collection> {
+  const incoming = validateCollection(value)
+  const merged = await readOrMergeLibrary(incoming)
+  if (!merged) throw new Error('Could not save the problem library.')
+  return merged
 }
