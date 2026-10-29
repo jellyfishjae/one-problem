@@ -19,10 +19,10 @@ from pathlib import Path
 import fitz
 
 
-PROBLEM = re.compile(r"\bProblem\s+(\d+)\.\s*")
+PROBLEM = re.compile(r"\bProblem\s+(\d+)[.:!~]\s*")
 FIGURE = re.compile(r"\bFigure\s+(\d+)\b", re.IGNORECASE)
-STOP = re.compile(r"^(?:Solution|Comment)\.\s|^§\s*\d+\.")
-INLINE_STOP = re.compile(r"\b(?:Solution|Comment)\.\s")
+STOP = re.compile(r"^(?:Solution|Comment|Hint|Answer|Methodological remark)(?:\.| to\b)|^§\s*\d+\.")
+INLINE_STOP = re.compile(r"\b(?:Solution|Comment|Hint|Answer|Methodological remark)\.\s")
 
 
 @dataclass
@@ -87,7 +87,10 @@ def extract_candidates(lines: list[Line]) -> tuple[list[dict], list[dict]]:
         text = line.text
         if (line.y < 22 and not PROBLEM.search(text)) or re.fullmatch(r"FIGURE\s+\d+", text, re.IGNORECASE):
             continue
-        matches = list(PROBLEM.finditer(text))
+        matches = [
+            match for match in PROBLEM.finditer(text)
+            if match.start() == 0 or text[: match.start()].rstrip().endswith((".", "?", "!"))
+        ]
         if matches:
             if active and matches[0].start():
                 active["parts"].append(text[: matches[0].start()].strip())
@@ -119,7 +122,11 @@ def extract_candidates(lines: list[Line]) -> tuple[list[dict], list[dict]]:
             continue
         # A new indented paragraph after a complete sentence normally begins
         # editorial prose. The report retains its first line for review.
-        if base_x is not None and line.x > base_x + 7 and active["parts"] and active["parts"][-1].endswith((".", "?", "!")):
+        if (
+            base_x is not None and line.x > base_x + 7 and active["parts"]
+            and active["parts"][-1].endswith((".", "?", "!"))
+            and not re.match(r"^[a-d]\)\s", text)
+        ):
             excluded.append({"afterProblem": active["number"], "page": line.page, "text": text})
             active = None
             continue
@@ -131,7 +138,7 @@ def extract_candidates(lines: list[Line]) -> tuple[list[dict], list[dict]]:
 
 
 def apply_overrides(problem: dict, override: dict) -> None:
-    statement = problem["statement"]
+    statement = override.get("statement", problem["statement"])
     for old, new in override.get("replace", []):
         if old not in statement:
             raise ValueError(f"Problem {problem['number']}: replacement text missing: {old!r}")
@@ -141,6 +148,21 @@ def apply_overrides(problem: dict, override: dict) -> None:
     if "append" in override:
         statement += " " + override["append"].strip()
     problem["statement"] = statement
+
+
+def add_reviewed_problems(candidates: list[dict], additions: list[dict], first_page: int, last_page: int) -> list[dict]:
+    """Insert numbered statements whose PDF labels could not be recognized by text extraction."""
+    existing = {problem["number"] for problem in candidates}
+    for addition in additions:
+        number = addition["number"]
+        page = addition["sourcePage"]
+        statement = addition["statement"]
+        if (not isinstance(number, int) or isinstance(number, bool) or number in existing
+                or not isinstance(page, int) or not first_page <= page <= last_page
+                or not isinstance(statement, str) or not statement.strip()):
+            raise ValueError(f"Invalid or duplicate reviewed problem: {addition}")
+        existing.add(number)
+    return sorted([*candidates, *additions], key=lambda problem: problem["number"])
 
 
 def format_math(statement: str) -> str:
@@ -225,6 +247,10 @@ def main() -> None:
 
     with fitz.open(args.pdf) as pdf:
         candidates, excluded = extract_candidates(read_lines(pdf, first_page, last_page))
+        draft_candidates = candidates
+        candidates = add_reviewed_problems(
+            candidates, overrides.get("additionalProblems", []), first_page, last_page
+        )
         problems = []
         for candidate in candidates:
             number = candidate["number"]
@@ -260,9 +286,11 @@ def main() -> None:
         "verifiedProblemNumbers": sorted(verified),
         "overrideProblemNumbers": sorted(int(number) for number in per_problem),
         "reviewNotes": overrides.get("reviewNotes", []),
+        "manualReview": overrides.get("manualReview", []),
+        "additionalProblemNumbers": [problem["number"] for problem in overrides.get("additionalProblems", [])],
         "draftProblems": [
             {"number": problem["number"], "sourcePage": problem["sourcePage"], "statement": problem["statement"]}
-            for problem in candidates if args.first_problem <= problem["number"] <= args.last_problem
+            for problem in draft_candidates if args.first_problem <= problem["number"] <= args.last_problem
         ],
         "excludedParagraphStarts": excluded,
         "figureReferences": {

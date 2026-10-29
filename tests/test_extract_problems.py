@@ -6,7 +6,7 @@ from pathlib import Path
 import fitz
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from extract_problems import extract_candidates, format_math, read_lines, require_ignored, validate  # noqa: E402
+from extract_problems import add_reviewed_problems, apply_overrides, extract_candidates, format_math, read_lines, require_ignored, validate  # noqa: E402
 
 
 class ExtractProblemsTests(unittest.TestCase):
@@ -51,6 +51,25 @@ class ExtractProblemsTests(unittest.TestCase):
     def test_public_build_path_is_rejected_even_if_ignored(self):
         with self.assertRaises(ValueError):
             require_ignored(Path("public/book-assets/private.json"))
+
+    def test_verified_statement_can_replace_unreliable_pdf_text(self):
+        candidate = {"number": 1, "statement": "Unreadable OCR"}
+        apply_overrides(candidate, {"statement": "Find $x^2$ for a given $x$."})
+        self.assertEqual(candidate["statement"], "Find $x^2$ for a given $x$.")
+
+    def test_reviewed_problem_fills_unrecognized_number_without_duplicates(self):
+        candidates = [
+            {"number": 9, "sourcePage": 2, "statement": "First problem."},
+            {"number": 11, "sourcePage": 3, "statement": "Third problem."},
+        ]
+        addition = {"number": 10, "sourcePage": 2, "statement": "Second problem."}
+        merged = add_reviewed_problems(candidates, [addition], 1, 4)
+        self.assertEqual([problem["number"] for problem in merged], [9, 10, 11])
+        self.assertEqual([problem["number"] for problem in candidates], [9, 11])
+        with self.assertRaises(ValueError):
+            add_reviewed_problems(candidates, [addition, addition], 1, 4)
+        with self.assertRaises(ValueError):
+            add_reviewed_problems(candidates, [{**addition, "sourcePage": 5}], 1, 4)
 
 
 if __name__ == "__main__":
