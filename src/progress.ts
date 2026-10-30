@@ -122,3 +122,18 @@ export function selectProgressChapter(selection: Selection, chapters: Chapter[],
     lastByChapter,
   }
 }
+
+export function selectProgressProblem(selection: Selection, chapters: Chapter[], id: string): Selection {
+  const selected = chapters.find((chapter) => chapter.problems.some((problem) => problem.id === id))
+  if (!selected) return selection
+  const outgoing = chapters.find((chapter) => chapter.key === selection.chapterKey)
+  const outgoingId = outgoing?.problems[selection.currentIndex]?.id
+  const lastByChapter = { ...selection.lastByChapter }
+  if (outgoingId) lastByChapter[selection.chapterKey] = outgoingId
+  lastByChapter[selected.key] = id
+  return {
+    chapterKey: selected.key,
+    currentIndex: selected.problems.findIndex((problem) => problem.id === id),
+    lastByChapter,
+  }
+}

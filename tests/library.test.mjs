@@ -16,10 +16,12 @@ function transpile(path) {
 
 const collectionUrl = moduleUrl(transpile('../src/collection.ts'))
 const progressUrl = moduleUrl(transpile('../src/progress.ts').replace("from './collection.ts'", `from '${collectionUrl}'`))
+const metadataUrl = moduleUrl(transpile('../src/problemMetadata.ts'))
 const { importCollection, loadLibrary } = await import(collectionUrl)
 const {
-  groupChapters, navigateSelection, NOTES_KEY_PREFIX, restoreSelection, saveSelection, selectProgressChapter,
+  groupChapters, navigateSelection, NOTES_KEY_PREFIX, restoreSelection, saveSelection, selectProgressChapter, selectProgressProblem,
 } = await import(progressUrl)
+const { PROBLEM_STATUSES, readProblemMetadata, saveBookmark, saveProblemStatus } = await import(metadataUrl)
 
 const problem = (id, chapter, chapterNumber, number, statement = `Original problem ${number}.`) => ({
   id, chapter, chapterNumber, number, statement, hints: [], solution: null,
@@ -81,6 +83,7 @@ function memoryStorage() {
   return {
     getItem: (key) => values.get(key) ?? null,
     setItem: (key, value) => values.set(key, value),
+    removeItem: (key) => values.delete(key),
   }
 }
 
@@ -147,6 +150,60 @@ test('chapter positions and notes survive switches, refresh, and database reopen
   assert.equal(storage.getItem(`${NOTES_KEY_PREFIX}chapter-zero-3`), 'Zero note')
   assert.equal(storage.getItem(`${NOTES_KEY_PREFIX}chapter-one-2`), 'One note')
   assert.equal(navigateSelection(restored, chapters, 1).currentIndex, 1)
+})
+
+test('statuses and bookmarks use stable IDs and survive reimport and reopening', async () => {
+  await deleteDatabase()
+  await importCollection(zero)
+  const library = await importCollection(one)
+  const storage = memoryStorage()
+  const chapters = groupChapters(library.problems)
+  assert.deepEqual(PROBLEM_STATUSES, ['Not Started', 'Still Thinking', 'Solved', 'Skipped'])
+  assert.deepEqual(readProblemMetadata(library.problems, storage), { statuses: {}, bookmarks: {} })
+  storage.setItem('one-problem:status:chapter-zero-1', 'In Progress')
+  assert.equal(readProblemMetadata(library.problems, storage).statuses['chapter-zero-1'] ?? 'Not Started', 'Not Started')
+
+  saveProblemStatus('chapter-zero-2', 'Still Thinking', storage)
+  saveProblemStatus('chapter-one-2', 'Solved', storage)
+  saveProblemStatus('chapter-zero-3', 'Skipped', storage)
+  saveBookmark('chapter-zero-2', true, storage)
+  saveBookmark('chapter-one-2', true, storage)
+  storage.setItem(`${NOTES_KEY_PREFIX}chapter-zero-2`, 'Keep this note')
+
+  let metadata = readProblemMetadata(library.problems, storage)
+  assert.equal(metadata.statuses['chapter-zero-1'] ?? 'Not Started', 'Not Started')
+  assert.equal(metadata.statuses['chapter-zero-2'], 'Still Thinking')
+  assert.equal(metadata.statuses['chapter-one-2'], 'Solved')
+  assert.equal(metadata.statuses['chapter-zero-3'], 'Skipped')
+  assert.deepEqual(Object.keys(metadata.bookmarks).sort(), ['chapter-one-2', 'chapter-zero-2'])
+
+  let selection = navigateSelection(restoreSelection(chapters, 'imported', storage), chapters, 1)
+  selection = selectProgressProblem(selection, chapters, 'chapter-one-2')
+  assert.equal(selection.chapterKey, chapters[1].key)
+  assert.equal(selection.currentIndex, 1)
+  saveSelection(selection, chapters, 'imported', storage)
+  assert.equal(selectProgressChapter(selection, chapters, chapters[0].key).currentIndex, 1)
+
+  const updated = collection(zero.problems.map((item) => ({ ...item, statement: `Updated ${item.id}.` })))
+  await importCollection(updated)
+  const reopened = await loadLibrary()
+  const reopenedChapters = groupChapters(reopened.problems)
+  const restored = restoreSelection(reopenedChapters, 'imported', storage)
+  metadata = readProblemMetadata(reopened.problems, storage)
+  assert.equal(restored.chapterKey, reopenedChapters[1].key)
+  assert.equal(restored.currentIndex, 1)
+  assert.equal(selectProgressChapter(restored, reopenedChapters, reopenedChapters[0].key).currentIndex, 1)
+  assert.equal(metadata.statuses['chapter-zero-2'], 'Still Thinking')
+  assert.equal(metadata.statuses['chapter-one-2'], 'Solved')
+  assert.equal(metadata.bookmarks['chapter-zero-2'], true)
+  assert.equal(metadata.bookmarks['chapter-one-2'], true)
+  assert.equal(storage.getItem(`${NOTES_KEY_PREFIX}chapter-zero-2`), 'Keep this note')
+
+  saveProblemStatus('chapter-zero-2', 'Not Started', storage)
+  assert.equal(readProblemMetadata(reopened.problems, storage).bookmarks['chapter-zero-2'], true)
+  saveBookmark('chapter-zero-2', false, storage)
+  assert.equal(readProblemMetadata(reopened.problems, storage).statuses['chapter-one-2'], 'Solved')
+  assert.equal(readProblemMetadata(reopened.problems, storage).statuses['chapter-zero-2'] ?? 'Not Started', 'Not Started')
 })
 
 const privateFiles = ['books/exports/chapter-zero-import.json', 'books/exports/chapter-one-import.json']

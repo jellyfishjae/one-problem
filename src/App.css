@@ -29,7 +29,7 @@
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 12px;
 }
 
 .wordmark {
@@ -59,7 +59,8 @@
   text-align: right;
 }
 
-.import-button {
+.import-button,
+.header-link {
   min-height: 44px;
   padding: 0 4px;
   border: 0;
@@ -71,16 +72,30 @@
   white-space: nowrap;
 }
 
-.import-button:hover {
+.header-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.header-link svg {
+  width: 16px;
+  height: 16px;
+}
+
+.import-button:hover,
+.header-link:hover {
   color: #272820;
 }
 
-.import-button:disabled {
+.import-button:disabled,
+.header-link:disabled {
   opacity: 0.5;
   cursor: default;
 }
 
-.import-button:focus-visible {
+.import-button:focus-visible,
+.header-link:focus-visible {
   outline: 2px solid #a66c46;
   outline-offset: 2px;
 }
@@ -173,8 +188,38 @@
 }
 
 .problem-label {
-  margin: 0 0 24px;
+  margin: 0;
   color: #a66c46;
+}
+
+.problem-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  margin-bottom: 8px;
+}
+
+.bookmark-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #a66c46;
+  cursor: pointer;
+}
+
+.bookmark-button:hover {
+  color: #7c5035;
+}
+
+.bookmark-button:focus-visible {
+  outline: 2px solid #a66c46;
+  outline-offset: 2px;
 }
 
 .problem-content h1 {
@@ -210,6 +255,39 @@
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+.status-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 64px;
+  border-top: 1px solid #dddcd2;
+  color: #63665a;
+  font-size: 14px;
+}
+
+.status-section label {
+  font-weight: 600;
+}
+
+.status-section select {
+  min-height: 44px;
+  max-width: 68%;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: #63665a;
+  cursor: pointer;
+  font: inherit;
+  font-size: 16px;
+  text-align: right;
+}
+
+.status-section select:focus-visible {
+  outline: 2px solid #a66c46;
+  outline-offset: 2px;
 }
 
 .notes-section {
@@ -326,8 +404,130 @@
   background: #475349;
 }
 
+.bookmarks-view {
+  flex: 1;
+  padding-top: clamp(64px, 13vh, 128px);
+}
+
+.bookmarks-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #dddcd2;
+}
+
+.bookmarks-heading h1 {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(29px, 5.2vw, 43px);
+  font-weight: 400;
+  letter-spacing: -0.035em;
+}
+
+.back-button {
+  min-height: 44px;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: #63665a;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.back-button:hover {
+  color: #272820;
+}
+
+.back-button:focus-visible {
+  outline: 2px solid #a66c46;
+  outline-offset: 2px;
+}
+
+.bookmarks-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bookmarks-list li {
+  border-bottom: 1px solid #dddcd2;
+}
+
+.bookmarks-list button {
+  display: block;
+  width: 100%;
+  min-height: 72px;
+  padding: 14px 0;
+  border: 0;
+  background: transparent;
+  color: #272820;
+  cursor: pointer;
+  text-align: left;
+}
+
+.bookmarks-list button:hover {
+  color: #a66c46;
+}
+
+.bookmarks-list button:focus-visible {
+  outline: 2px solid #a66c46;
+  outline-offset: 2px;
+}
+
+.bookmark-chapter,
+.bookmark-problem {
+  display: block;
+}
+
+.bookmark-chapter {
+  margin-bottom: 6px;
+  color: #797a6e;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.bookmark-problem {
+  display: flex;
+  justify-content: space-between;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 19px;
+}
+
+.bookmarks-empty {
+  margin: 32px 0;
+  color: #63665a;
+  font-size: 14px;
+}
+
 @media (max-width: 480px) {
+  .site-header,
+  .header-actions {
+    gap: 8px;
+  }
+
   .header-note {
+    display: none;
+  }
+
+  .header-link {
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+  }
+
+  .header-link svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .header-link-text {
     display: none;
   }
 
